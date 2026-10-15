@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f172a">
+<meta name="description" content="Monitoreo de cuerpos de agua - CEAS V4">
+<link rel="manifest" href="manifest.json">
+<title>MONITOREO AGUA</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;font-family:system-ui}body{margin:0;background:#f1f5f9}
+.header{background:#0f172a;color:#fff;padding:14px 18px;display:flex;justify-content:space-between}
+.card{background:#fff;border-radius:12px;padding:14px;margin:10px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:600px){.grid2{grid-template-columns:1fr}}
+label{font-weight:700;font-size:11px;color:#334155;display:block;margin:8px 0 4px;text-transform:uppercase}
+input,select,textarea{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:8px}
+textarea.obs{border:2px solid #f59e0b;background:#fffbeb;min-height:90px}
+.btn{width:100%;padding:15px;border:0;border-radius:10px;font-weight:800;color:#fff;margin:8px 10px;cursor:pointer}
+.btn-blue{background:#0ea5e9}.btn-green{background:#16a34a}.btn-dark{background:#0f172a}
+.foto{border:2px dashed #94a3b8;border-radius:12px;padding:28px;text-align:center;background:#f8fafc;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="header"><div>🌊 MONITOREO AGUA<br><small>21 Parámetros + Observaciones</small></div><div id="fh" style="font-size:11px"></div></div>
+
+<div class="card">
+<div class="grid2"><div><label>FECHA</label><input type="date" id="fecha"></div><div><label>1. HORA DE INICIO</label><input type="time" id="hora"></div></div>
+<label>OPERADOR / SITIO (KIKAPÚ / DON MARTÍN)</label><input id="sitio" placeholder="Ej: Kikapú , Presa Don Martín">
+<div class="grid2"><div><label>GPS LAT</label><input id="lat" readonly></div><div><label>GPS LONG</label><input id="lng" readonly></div></div>
+<div id="gpsStatus" style="margin:8px 0;padding:10px;border-radius:8px;background:#f1f5f9;color:#475569;font-size:12px;font-weight:700">🛰️ GPS listo para obtener ubicación</div>
+<button type="button" class="btn btn-dark" onclick="getGPS()">📍 Obtener GPS Actual</button>
+</div>
+
+<div class="card"><label>📷 Evidencia Fotográfica</label><div class="foto" onclick="fotoIn.click()"><span id="fotoTxt">Toca para tomar foto del cuerpo de agua</span><br><img id="prev" style="display:none;max-width:100%;margin-top:10px"></div><input type="file" id="fotoIn" accept="image/*" capture="environment" style="display:none" onchange="pFoto(event)"></div>
+
+<div class="card"><b>🌡️ CONDICIONES AMBIENTALES</b><div class="grid2">
+<div><label>2. TEMPERATURA AMBIENTE (°C)</label><input id="p2"></div>
+<div><label>3. NUBOSIDAD</label><select id="p3"><option>Seleccionar</option><option>Despejado</option><option>Parcial</option><option>Nublado</option></select></div>
+<div><label>4. LLUVIA</label><select id="p4"><option>Seleccionar</option><option>Sin lluvia</option><option>Lluvia</option></select></div>
+<div><label>18. HUMEDAD (%)</label><input id="p18"></div>
+<div><label>19. VIENTO (KM/H)</label><input id="p19"></div>
+<div><label>20. DIRECCIÓN DE VIENTO</label><select id="p20"><option>Seleccionar</option><option>N</option><option>E</option><option>S</option><option>O</option></select></div>
+</div></div>
+
+<div class="card"><b>🧪 PARÁMETROS DE AGUA - SONDA</b><div class="grid2">
+<div><label>5. PH (MV)</label><input id="p5"></div><div><label>6. PH</label><input id="p6"></div>
+<div><label>7. POTENCIAL REDOX (ORP) MV</label><input id="p7"></div><div><label>8. OXÍGENO DISUELTO (%)</label><input id="p8"></div>
+<div><label>9. OXÍGENO DISUELTO (PPM)</label><input id="p9"></div><div><label>10. CONDUCTIVIDAD (MS/CM)</label><input id="p10"></div>
+<div><label>11. CONDUCTIVIDAD ABSOLUTA (MS/CM)</label><input id="p11"></div><div><label>12. RESISTIVIDAD (OHM-CM)</label><input id="p12"></div>
+<div><label>13. SÓLIDOS DISUELTOS TOTALES (PPM)</label><input id="p13"></div><div><label>14. SALINIDAD (PSU)</label><input id="p14"></div>
+<div><label>15. TEMPERATURA DEL AGUA</label><input id="p15"></div><div><label>16. PROFUNDIDAD</label><input id="p16"></div><div><label>17. TURBIDEZ</label><input id="p17"></div>
+</div></div>
+
+<div class="card"><b>21. OBSERVACIONES</b><label style="color:#b45309;font-size:10px">OBSERVACIONES - CAMPO EXTRA PARA DATOS RELEVANTES</label><textarea id="p21" class="obs" placeholder="Ej: se encontró el cuerpo de agua seco, muy turbio, presencia de lirio, olor fuerte, basura en orilla, nivel bajo, etc."></textarea></div>
+
+<button class="btn btn-blue" onclick="guardar()">💾 Guardar Registro</button>
+<button class="btn btn-green" onclick="exportarExcel()">📊 Exportar Excel (XLSX)</button>
+<button class="btn btn-dark" onclick="generarPDF()">📄 Generar PDF</button>
+
+<script>
+document.getElementById('fecha').valueAsDate=new Date();
+document.getElementById('hora').value=new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false});
+fh.innerText=new Date().toLocaleDateString('es-MX');
+let fotoBase64="";
+let gpsIntentado=false;
+
+function setGPSStatus(text, ok=false, error=false){
+  const el=document.getElementById("gpsStatus");
+  if(!el) return;
+  el.textContent=text;
+  el.style.background=ok?"#dcfce7":error?"#fee2e2":"#f1f5f9";
+  el.style.color=ok?"#166534":error?"#991b1b":"#475569";
+}
+
+function getGPS(){
+  if(!navigator.geolocation){
+    setGPSStatus("❌ Este navegador no permite obtener ubicación.",false,true);
+    return;
+  }
+
+  setGPSStatus("🛰️ Obteniendo ubicación GPS...");
+  navigator.geolocation.getCurrentPosition(
+    p=>{
+      lat.value=p.coords.latitude.toFixed(6);
+      lng.value=p.coords.longitude.toFixed(6);
+      const precision=Math.round(p.coords.accuracy);
+      setGPSStatus("✅ GPS obtenido · precisión aproximada: ±"+precision+" m",true);
+    },
+    error=>{
+      let msg="No se pudo obtener la ubicación.";
+      if(error.code===1) msg="⚠️ Permiso de ubicación rechazado. Actívalo para Chrome.";
+      if(error.code===2) msg="⚠️ No fue posible determinar la ubicación.";
+      if(error.code===3) msg="⚠️ El GPS tardó demasiado. Intenta nuevamente.";
+      setGPSStatus(msg,false,true);
+    },
+    {enableHighAccuracy:true, timeout:20000, maximumAge:0}
+  );
+}
+function pFoto(e){let f=e.target.files[0];if(f){let r=new FileReader();r.onload=x=>{fotoBase64=x.target.result;prev.src=fotoBase64;prev.style.display='block';fotoTxt.innerText='Foto capturada ✓'};r.readAsDataURL(f)}}
+function getDatos(){return{FECHA:fecha.value,HORA:hora.value,SITIO:sitio.value,LAT:lat.value,LNG:lng.value,P2:p2.value,P3:p3.value,P4:p4.value,P5:p5.value,P6:p6.value,P7:p7.value,P8:p8.value,P9:p9.value,P10:p10.value,P11:p11.value,P12:p12.value,P13:p13.value,P14:p14.value,P15:p15.value,P16:p16.value,P17:p17.value,P18:p18.value,P19:p19.value,P20:p20.value,P21:p21.value}}
+function guardar(){let d=getDatos();let a=JSON.parse(localStorage.getItem('ceas_v4')||'[]');a.push(d);localStorage.setItem('ceas_v4',JSON.stringify(a));alert('✅ Registro guardado ('+a.length+') sin internet')}
+function exportarExcel(){let d=getDatos();let data=[["CEAS V4"],["FECHA",d.FECHA],["HORA",d.HORA],["SITIO",d.SITIO],["LAT",d.LAT],["LNG",d.LNG],["2 TEMP AMB",d.P2],["3 NUBOSIDAD",d.P3],["4 LLUVIA",d.P4],["5 PH mV",d.P5],["6 PH",d.P6],["7 ORP",d.P7],["8 OD%",d.P8],["9 OD PPM",d.P9],["10 COND",d.P10],["11 COND ABS",d.P11],["12 RESIST",d.P12],["13 TDS",d.P13],["14 SAL",d.P14],["15 TEMP AGUA",d.P15],["16 PROF",d.P16],["17 TURB",d.P17],["18 HUM",d.P18],["19 VIENTO",d.P19],["20 DIR",d.P20],["21 OBS",d.P21]];let wb=XLSX.utils.book_new();let ws=XLSX.utils.aoa_to_sheet(data);XLSX.utils.book_append_sheet(wb,ws,"CEAS");XLSX.writeFile(wb,"CEAS_V4_"+d.FECHA+".xlsx")}
+function generarPDF(){let {jsPDF}=window.jspdf;let doc=new jsPDF();let d=getDatos();doc.setFontSize(12);doc.text("MONITOREO CEAS V4 - KIKAPÚ / DON MARTÍN",10,15);let y=25;["FECHA: "+d.FECHA+" HORA: "+d.HORA,"SITIO: "+d.SITIO,"GPS: "+d.LAT+", "+d.LNG,"","2 TEMP: "+d.P2+" 3 NUB: "+d.P3+" 4 LLUVIA: "+d.P4,"5 PH mV: "+d.P5+" 6 PH: "+d.P6,"7 ORP: "+d.P7+" 8 OD%: "+d.P8+" 9 OD PPM: "+d.P9,"10 COND: "+d.P10+" 11 COND ABS: "+d.P11,"12 RESIST: "+d.P12+" 13 TDS: "+d.P13,"14 SAL: "+d.P14+" 15 TEMP AGUA: "+d.P15,"18 HUM: "+d.P18+" 19 VIENTO: "+d.P19+" 20 DIR: "+d.P20,"","21 OBSERVACIONES: "+d.P21].forEach(l=>{let s=doc.splitTextToSize(l,180);doc.text(s,10,y);y+=s.length*6+3});if(fotoBase64){try{doc.addPage();doc.text("EVIDENCIA FOTOGRÁFICA",10,15);doc.addImage(fotoBase64,'JPEG',10,25,180,100)}catch(e){}}doc.save("CEAS_V4_"+d.FECHA+".pdf")}
+setTimeout(getGPS,500);
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

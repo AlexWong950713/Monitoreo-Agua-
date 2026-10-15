@@ -1,0 +1,11 @@
+{
+  "name": "MONITOREO AGUA",
+  "short_name": "Monitoreo Agua",
+  "description": "Monitoreo de cuerpos de agua - CEAS V4",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#0f172a",
+  "lang": "es-MX",
+  "orientation": "portrait"
+}
